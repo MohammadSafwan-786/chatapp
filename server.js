@@ -1,4 +1,3 @@
-// server.js
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -6,59 +5,40 @@ const cors = require('cors');
 
 const app = express();
 const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: "*" } });
 
-// Allow CORS for static frontends hosted elsewhere
 app.use(cors());
-app.use(express.static('public')); // optional: serve frontend from backend
 
-const io = new Server(server, {
-  cors: {
-    origin: '*', // restrict to your frontend origin in production
-    methods: ['GET','POST']
-  }
-});
-
-// In-memory message history (small buffer)
-const HISTORY_LIMIT = 200;
-const history = [];
-
-// Helper to push to history
-function pushHistory(msg){
-  history.push(msg);
-  if(history.length > HISTORY_LIMIT) history.shift();
-}
+const users = {}; // username -> socket.id
 
 io.on('connection', (socket) => {
-  console.log('Client connected', socket.id);
+  console.log('User connected:', socket.id);
 
-  // Send recent history to the new client
-  socket.emit('history', history);
-
-  // Optional identify event
-  socket.on('identify', (info) => {
-    console.log('Identify', socket.id, info);
-    // Could store socket->user mapping here
+  socket.on('register', (username) => {
+    users[username] = socket.id;
+    console.log(`${username} registered`);
   });
 
-  // Receive chat message and broadcast
   socket.on('chat message', (msg) => {
-    // Basic validation
-    if(!msg || typeof msg.text !== 'string') return;
-    const safeMsg = {
-      sender: msg.sender || 'Anonymous',
-      senderId: msg.senderId || null,
-      text: msg.text.slice(0, 2000),
-      ts: msg.ts || Date.now()
-    };
-    pushHistory(safeMsg);
-    io.emit('chat message', safeMsg);
+    io.emit('chat message', msg);
+  });
+
+  socket.on('private message', ({ to, from, text }) => {
+    const targetId = users[to];
+    if (targetId) {
+      io.to(targetId).emit('private message', { from, text });
+    }
   });
 
   socket.on('disconnect', () => {
-    console.log('Client disconnected', socket.id);
+    for (let name in users) {
+      if (users[name] === socket.id) {
+        delete users[name];
+      }
+    }
+    console.log('User disconnected:', socket.id);
   });
 });
 
-// Start server
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
