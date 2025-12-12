@@ -1,0 +1,20 @@
+{
+  "name": "chatapp-backend",
+  "version": "1.0.0",
+  "description": "Real-time chat backend using Node.js and Socket.IO",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "cors": "^2.8.5"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "keywords": [],
+  "author": "Mohammad",
+  "license": "MIT"
+}
